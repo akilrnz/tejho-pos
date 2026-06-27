@@ -1,11 +1,31 @@
-import { useState } from "react";
-import { products } from "../data/products";
+import { useEffect, useState } from "react";
+import { supabase } from "../lib/supabase";
 import ProductForm from "../components/ProductForm";
 
 function Products() {
   const [search, setSearch] = useState("");
-  const [productList, setProductList] = useState(products);
+  const [productList, setProductList] = useState([]);
   const [showForm, setShowForm] = useState(false);
+  const [editingProduct, setEditingProduct] =
+    useState(null);
+
+  useEffect(() => {
+    fetchProducts();
+  }, []);
+
+  const fetchProducts = async () => {
+    const { data, error } = await supabase
+      .from("products")
+      .select("*")
+      .order("id");
+
+    if (error) {
+      console.error(error);
+      return;
+    }
+
+    setProductList(data);
+  };
 
   const filteredProducts = productList.filter((product) =>
     product.name
@@ -13,7 +33,7 @@ function Products() {
       .includes(search.toLowerCase())
   );
 
-  const addProduct = (newProduct) => {
+  const addProduct = async (newProduct) => {
     const duplicate = productList.some(
       (product) =>
         product.name.trim().toLowerCase() ===
@@ -25,20 +45,31 @@ function Products() {
       return false;
     }
 
-    setProductList((prevProducts) => [
-      ...prevProducts,
-      newProduct,
-    ]);
+    const { error } = await supabase
+      .from("products")
+      .insert([
+        {
+          name: newProduct.name,
+          unit: newProduct.unit,
+          retail: newProduct.retail,
+          wholesale: newProduct.wholesale,
+          partner: newProduct.partner,
+        },
+      ]);
+
+    if (error) {
+      alert(error.message);
+      return false;
+    }
+
+    await fetchProducts();
 
     setShowForm(false);
 
     return true;
   };
 
-  const [editingProduct, setEditingProduct] =
-    useState(null);
-  
-  const updateProduct = (updatedProduct) => {
+  const updateProduct = async (updatedProduct) => {
     const duplicate = productList.some(
       (product) =>
         product.id !== updatedProduct.id &&
@@ -51,13 +82,23 @@ function Products() {
       return false;
     }
 
-    setProductList((prevProducts) =>
-      prevProducts.map((product) =>
-        product.id === updatedProduct.id
-          ? updatedProduct
-          : product
-      )
-    );
+    const { error } = await supabase
+      .from("products")
+      .update({
+        name: updatedProduct.name,
+        unit: updatedProduct.unit,
+        retail: updatedProduct.retail,
+        wholesale: updatedProduct.wholesale,
+        partner: updatedProduct.partner,
+      })
+      .eq("id", updatedProduct.id);
+
+    if (error) {
+      alert(error.message);
+      return false;
+    }
+
+    await fetchProducts();
 
     setEditingProduct(null);
     setShowForm(false);
@@ -65,37 +106,41 @@ function Products() {
     return true;
   };
 
-  const deleteProduct = (id) => {
+  const deleteProduct = async (id) => {
     const confirmed = window.confirm(
       "Are you sure you want to delete this product?"
     );
 
     if (!confirmed) return;
 
-    setProductList((prevProducts) =>
-      prevProducts.filter(
-        (product) => product.id !== id
-      )
-    );
+    const { error } = await supabase
+      .from("products")
+      .delete()
+      .eq("id", id);
+
+    if (error) {
+      alert(error.message);
+      return;
+    }
+
+    await fetchProducts();
   };
 
   return (
     <div className="p-6">
-
-      {/* Header */}
       <div className="flex justify-between items-center mb-6">
-
         <h1 className="text-3xl font-bold">
           Products
         </h1>
 
         <div className="flex items-center gap-3">
-
           <input
             type="text"
             placeholder="Search product..."
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={(e) =>
+              setSearch(e.target.value)
+            }
             className="border rounded-lg px-4 py-2 w-72"
           />
 
@@ -108,31 +153,36 @@ function Products() {
           >
             + Add Product
           </button>
-
         </div>
-
       </div>
 
-      {/* Product Table */}
       <div className="bg-white rounded-xl shadow overflow-hidden">
-
         <table className="w-full">
-
           <thead className="bg-gray-100">
             <tr>
-              <th className="text-left p-4">Product</th>
-              <th className="text-left p-4">Unit</th>
-              <th className="text-left p-4">Retail</th>
-              <th className="text-left p-4">Wholesale</th>
-              <th className="text-left p-4">Partner</th>
-              <th className="text-center p-4">Actions</th>
+              <th className="text-left p-4">
+                Product
+              </th>
+              <th className="text-left p-4">
+                Unit
+              </th>
+              <th className="text-left p-4">
+                Retail
+              </th>
+              <th className="text-left p-4">
+                Wholesale
+              </th>
+              <th className="text-left p-4">
+                Partner
+              </th>
+              <th className="text-center p-4">
+                Actions
+              </th>
             </tr>
           </thead>
 
           <tbody>
-
             {filteredProducts.length === 0 ? (
-
               <tr>
                 <td
                   colSpan="6"
@@ -141,38 +191,44 @@ function Products() {
                   No products found.
                 </td>
               </tr>
-
             ) : (
-
               filteredProducts.map((product) => (
-
                 <tr
                   key={product.id}
                   className="border-t hover:bg-gray-50"
                 >
-                  <td className="p-4">{product.name}</td>
+                  <td className="p-4">
+                    {product.name}
+                  </td>
 
                   <td className="p-4 uppercase">
                     {product.unit}
                   </td>
 
                   <td className="p-4">
-                    ₱{product.retail.toFixed(2)}
+                    ₱{Number(
+                      product.retail
+                    ).toFixed(2)}
                   </td>
 
                   <td className="p-4">
-                    ₱{product.wholesale.toFixed(2)}
+                    ₱{Number(
+                      product.wholesale
+                    ).toFixed(2)}
                   </td>
 
                   <td className="p-4">
-                    ₱{product.partner.toFixed(2)}
+                    ₱{Number(
+                      product.partner
+                    ).toFixed(2)}
                   </td>
 
                   <td className="p-4 text-center">
-
                     <button
                       onClick={() => {
-                        setEditingProduct(product);
+                        setEditingProduct(
+                          product
+                        );
                         setShowForm(true);
                       }}
                       className="text-blue-600 hover:underline mr-4"
@@ -181,24 +237,19 @@ function Products() {
                     </button>
 
                     <button
-                      onClick={() => deleteProduct(product.id)}
+                      onClick={() =>
+                        deleteProduct(product.id)
+                      }
                       className="text-red-600 hover:underline"
                     >
                       Delete
                     </button>
-
                   </td>
-
                 </tr>
-
               ))
-
             )}
-
           </tbody>
-
         </table>
-
       </div>
 
       {showForm && (
@@ -212,7 +263,6 @@ function Products() {
           }}
         />
       )}
-
     </div>
   );
 }

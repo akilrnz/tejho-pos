@@ -64,6 +64,10 @@ function AddItemForm({
             }
             className="w-full border rounded p-2"
           >
+            <option value="">
+              Select Product
+            </option>
+
             {products.map((product) => (
               <option
                 key={product.id}
