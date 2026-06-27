@@ -30,8 +30,10 @@ function POS() {
   const fetchProducts = async () => {
     const { data, error } = await supabase
         .from("products")
-        .select("*");
-
+        .select("*")
+        .eq("is_active", true)
+        .order("name");
+        
     console.log(data);
     console.log(error);
 

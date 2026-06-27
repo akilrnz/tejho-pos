@@ -108,14 +108,16 @@ function Products() {
 
   const deleteProduct = async (id) => {
     const confirmed = window.confirm(
-      "Are you sure you want to delete this product?"
+      "Are you sure you want to archive this product?"
     );
 
     if (!confirmed) return;
 
     const { error } = await supabase
       .from("products")
-      .delete()
+      .update({
+        is_active: false,
+      })
       .eq("id", id);
 
     if (error) {
@@ -125,6 +127,22 @@ function Products() {
 
     await fetchProducts();
   };
+
+  const restoreProduct = async (id) => {
+  const { error } = await supabase
+    .from("products")
+    .update({
+      is_active: true,
+    })
+    .eq("id", id);
+
+  if (error) {
+    alert(error.message);
+    return;
+  }
+
+  await fetchProducts();
+};
 
   return (
     <div className="p-6">
@@ -175,6 +193,9 @@ function Products() {
               <th className="text-left p-4">
                 Partner
               </th>
+              <th className="text-left p-4">
+                Status
+              </th>
               <th className="text-center p-4">
                 Actions
               </th>
@@ -222,32 +243,55 @@ function Products() {
                       product.partner
                     ).toFixed(2)}
                   </td>
+                 <td className="p-4">
+  {product.is_active ? (
+    <span className="text-green-600 font-medium">
+      Active
+    </span>
+  ) : (
+    <span className="text-red-600 font-medium">
+      Archived
+    </span>
+  )}
+</td>
 
-                  <td className="p-4 text-center">
-                    <button
-                      onClick={() => {
-                        setEditingProduct(
-                          product
-                        );
-                        setShowForm(true);
-                      }}
-                      className="text-blue-600 hover:underline mr-4"
-                    >
-                      Edit
-                    </button>
+<td className="p-4 text-center">
+  {product.is_active ? (
+    <>
+      <button
+        onClick={() => {
+          setEditingProduct(product);
+          setShowForm(true);
+        }}
+        className="text-blue-600 hover:underline mr-4"
+      >
+        Edit
+      </button>
 
-                    <button
-                      onClick={() =>
-                        deleteProduct(product.id)
-                      }
-                      className="text-red-600 hover:underline"
-                    >
-                      Delete
-                    </button>
-                  </td>
-                </tr>
-              ))
-            )}
+      <button
+        onClick={() =>
+          deleteProduct(product.id)
+        }
+        className="text-red-600 hover:underline"
+      >
+        Archive
+      </button>
+    </>
+  ) : (
+    <button
+      onClick={() =>
+        restoreProduct(product.id)
+      }
+      className="text-green-600 hover:underline"
+    >
+      Restore
+    </button>
+  )}
+</td>
+
+</tr>
+))
+)}
           </tbody>
         </table>
       </div>
